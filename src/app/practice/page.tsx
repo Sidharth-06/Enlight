@@ -405,7 +405,7 @@ export default function PracticePage() {
               <div className={`mood-badge ${interviewerMood.toLowerCase()}`} title={`Interviewer Mood: ${interviewerMood}`}>
                 <span className="mood-badge-dot" />
                 <span className="mood-badge-icon">
-                  {interviewerMood === "Impressed" ? "🏆" : interviewerMood === "Skeptical" ? "🧐" : interviewerMood === "Supportive" ? "🤝" : "⚖️"}
+                  {interviewerMood === "Impressed" ? "✓" : interviewerMood === "Skeptical" ? "!" : interviewerMood === "Supportive" ? "+" : "→"}
                 </span>
                 <span className="mood-badge-label">{interviewerMood}</span>
               </div>
@@ -575,7 +575,7 @@ export default function PracticePage() {
 
               {isModelRevealed && (
                 <div className="model-answer-box">
-                  <div className="model-answer-label">📖 Model Answer</div>
+                  <div className="model-answer-label">Model Answer</div>
                   <div className="model-answer-text">{currentQuestion.modelAnswer}</div>
                 </div>
               )}
@@ -837,7 +837,7 @@ export default function PracticePage() {
                 <div className="feedback-details">
                   <FeedbackSection title="Strengths" items={feedback.strengths} color="#10b981" icon="✓" />
                   <FeedbackSection title="To Improve" items={feedback.improvements} color="#f59e0b" icon="→" />
-                  <FeedbackSection title="Suggestions" items={feedback.suggestions} color="#6366f1" icon="💡" />
+                  <FeedbackSection title="Suggestions" items={feedback.suggestions} color="#6366f1" icon="*" />
                   {feedback.criticalGaps.length > 0 && (
                     <FeedbackSection
                       title="Critical Gaps"

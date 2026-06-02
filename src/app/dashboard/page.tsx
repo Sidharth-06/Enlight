@@ -59,6 +59,33 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
+function getDefaultTypesForRole(role: string): InterviewType[] {
+  const roleLower = role.toLowerCase();
+  
+  // PM, Product, Design roles → Behavioral, Situational, HR
+  if (roleLower.includes("product") || roleLower.includes("pm") || roleLower.includes("design")) {
+    return ["Behavioral", "Situational", "HR"];
+  }
+  
+  // DevOps, SRE → System Design, Technical_Coding
+  if (roleLower.includes("devops") || roleLower.includes("sre")) {
+    return ["Technical_System_Design", "Technical_Coding"];
+  }
+  
+  // Data scientist, ML → Behavioral, Situational, HR (less coding focus)
+  if (roleLower.includes("data") || roleLower.includes("machine learning") || roleLower.includes("ml")) {
+    return ["Behavioral", "Situational", "Technical_Coding"];
+  }
+  
+  // Default for engineers: Behavioral, System Design, Coding
+  if (roleLower.includes("engineer") || roleLower.includes("backend") || roleLower.includes("frontend") || roleLower.includes("fullstack")) {
+    return ["Technical_Coding", "Technical_System_Design", "Behavioral"];
+  }
+  
+  // Default fallback
+  return ["Technical_Coding", "Technical_System_Design", "Behavioral"];
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -69,7 +96,7 @@ export default function DashboardPage() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>(profile.difficulty || "Intermediate");
   const [persona, setPersona] = useState<Persona>(profile.persona || "friendly");
   const [selectedTypes, setSelectedTypes] = useState<InterviewType[]>(
-    profile.preferredTypes.length ? profile.preferredTypes : ["Technical_Coding", "Behavioral"]
+    profile.preferredTypes.length ? profile.preferredTypes : getDefaultTypesForRole(role)
   );
   const [questionCount, setQuestionCount] = useState(5);
   const [timedMode, setTimedMode] = useState(false);
@@ -85,6 +112,10 @@ export default function DashboardPage() {
       if (saved) setRecentSessions(JSON.parse(saved).slice(0, 5));
     } catch {}
   }, []);
+
+  useEffect(() => {
+    setSelectedTypes(getDefaultTypesForRole(role));
+  }, [role]);
 
   function toggleType(type: InterviewType) {
     setSelectedTypes((prev) =>
@@ -132,7 +163,7 @@ export default function DashboardPage() {
         <motion.div className="dashboard-hero" {...fadeUp}>
           <div>
             <p className="dashboard-eyebrow">Good {getTimeGreeting()},</p>
-            <h1 className="dashboard-title">Welcome back, <span className="accent">{displayName}</span> 👋</h1>
+            <h1 className="dashboard-title">Welcome back, <span className="accent">{displayName}</span></h1>
             <p className="dashboard-subtitle">Ready to sharpen your skills? Start a session below.</p>
           </div>
 
@@ -197,7 +228,7 @@ export default function DashboardPage() {
                     className={`segmented-btn ${persona === p ? "active" : ""}`}
                     onClick={() => setPersona(p)}
                   >
-                    {p === "friendly" ? "😊 Friendly" : p === "neutral" ? "⚖️ Neutral" : "🔥 Tough"}
+                    {p === "friendly" ? "Friendly" : p === "neutral" ? "Neutral" : "Tough"}
                   </button>
                 ))}
               </div>
