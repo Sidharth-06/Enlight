@@ -20,10 +20,43 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
+    const localSessions: any[] = [];
     try {
       const saved = localStorage.getItem("interview-prep-history");
-      if (saved) setSessions(JSON.parse(saved));
+      if (saved) localSessions.push(...JSON.parse(saved));
     } catch {}
+
+    async function loadRemote() {
+      try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+        const remoteSessions = (data.sessions ?? []).map((row: any) => {
+          const payload = row.payload ?? {};
+          return {
+            ...payload,
+            createdAt: payload.createdAt ?? row.created_at,
+            id: payload.id ?? row.id,
+          };
+        });
+
+        const merged = new Map<string, any>();
+        [...remoteSessions, ...localSessions].forEach((s) => {
+          const key = s.id || s.createdAt || crypto.randomUUID();
+          if (!merged.has(key)) merged.set(key, s);
+        });
+
+        const next = Array.from(merged.values()).sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+        setSessions(next);
+      } catch {
+        setSessions(localSessions);
+      }
+    }
+
+    loadRemote();
   }, []);
 
   const filtered = filter === "all" ? sessions : sessions.filter((s) =>
