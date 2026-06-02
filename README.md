@@ -1,4 +1,4 @@
-# Interview Prep Bot
+# Enlight - Interview Prep Bot
 
 An AI-assisted interview prep app that lets users configure mock interviews, practice coding or behavioral questions, and get feedback, hints, and session history.
 
