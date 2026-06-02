@@ -59,6 +59,23 @@ const fadeUp = {
   transition: { duration: 0.4 },
 };
 
+const ROLE_OPTIONS = [
+  "Software Engineer",
+  "Frontend Engineer",
+  "Backend Engineer",
+  "Fullstack Engineer",
+  "DevOps Engineer",
+  "SRE",
+  "Data Engineer",
+  "Data Scientist",
+  "ML Engineer",
+  "Product Manager",
+  "Product Designer",
+  "UX Designer",
+  "Engineering Manager",
+  "Senior Engineer",
+];
+
 function getDefaultTypesForRole(role: string): InterviewType[] {
   const roleLower = role.toLowerCase();
   
@@ -149,11 +166,25 @@ export default function DashboardPage() {
     ? (recentSessions.reduce((s, r) => s + (r.averageScore || 0), 0) / recentSessions.length).toFixed(1)
     : null;
 
+  const bestType = recentSessions.length > 0
+    ? (() => {
+        const typeCounts: Record<string, number> = {};
+        recentSessions.forEach((s) => {
+          s.records?.forEach((r: any) => {
+            const type = r.question?.type?.replace("_", " ") || "Unknown";
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+          });
+        });
+        const best = Object.entries(typeCounts).sort(([, a], [, b]) => b - a)[0];
+        return best ? best[0] : "—";
+      })()
+    : "—";
+
   const stats = [
     { label: "Sessions", value: recentSessions.length || "0", icon: <Target size={20} />, color: "#10b981" },
     { label: "Avg Score", value: avgScore ? `${avgScore}/10` : "—", icon: <Trophy size={20} />, color: "#f59e0b" },
     { label: "Starred", value: starredQuestions.length.toString(), icon: <Star size={20} />, color: "#6366f1" },
-    { label: "Best Type", value: "Coding", icon: <Flame size={20} />, color: "#ef4444" },
+    { label: "Best Type", value: bestType, icon: <Flame size={20} />, color: "#ef4444" },
   ];
 
   return (
@@ -189,16 +220,43 @@ export default function DashboardPage() {
               <h2>New Session</h2>
             </div>
 
-            {/* Role input */}
+            {/* Role dropdown */}
             <div className="config-field">
               <label>Target Role</label>
-              <input
-                type="text"
+              <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                placeholder="e.g. Senior Backend Engineer"
                 className="config-input"
-              />
+                style={{ cursor: "pointer" }}
+              >
+                <option value="">Select a role...</option>
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+                <option value="">---</option>
+                <option value="custom">Custom Role</option>
+              </select>
+              {role && !ROLE_OPTIONS.includes(role) && role !== "custom" && (
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="Enter custom role"
+                  className="config-input"
+                  style={{ marginTop: "8px" }}
+                />
+              )}
+              {role === "custom" && (
+                <input
+                  type="text"
+                  placeholder="Enter your role"
+                  onChange={(e) => setRole(e.target.value)}
+                  className="config-input"
+                  style={{ marginTop: "8px" }}
+                />
+              )}
             </div>
 
             {/* Difficulty segmented control */}
