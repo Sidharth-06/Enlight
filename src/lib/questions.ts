@@ -231,6 +231,129 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
+function alignQuestionToRole(question: Question, role: string): Question {
+  const roleLower = role.toLowerCase();
+  
+  // Categorize role
+  let roleCategory: "tech" | "data" | "product_design" | "business_ops" | "hr" = "tech";
+  if (roleLower.includes("hr") || roleLower.includes("recruiter") || roleLower.includes("people")) {
+    roleCategory = "hr";
+  } else if (roleLower.includes("product") || roleLower.includes("design") || roleLower.includes("ux") || roleLower.includes("ui")) {
+    roleCategory = "product_design";
+  } else if (roleLower.includes("operations") || roleLower.includes("business") || roleLower.includes("analyst")) {
+    roleCategory = "business_ops";
+  } else if (roleLower.includes("data") || roleLower.includes("scientist") || roleLower.includes("ml") || roleLower.includes("learning")) {
+    roleCategory = "data";
+  }
+
+  // Deep clone the question so we don't mutate the bank
+  const q = { ...question, hints: [...question.hints], rubric: [...question.rubric] };
+
+  // Helper to replace software/engineering terms dynamically based on category
+  const replaceContext = (text: string): string => {
+    if (!text) return text;
+    
+    // Always replace direct "software engineer" / "developer" references with the role name
+    let clean = text
+      .replace(/software engineer/gi, role)
+      .replace(/developer autonomy/gi, `${role} autonomy`)
+      .replace(/developer hours/gi, `working hours`)
+      .replace(/developer/gi, role)
+      .replace(/software development/gi, `${role} workflow`);
+
+    if (roleCategory === "hr") {
+      clean = clean
+        .replace(/engineering unit/gi, "HR department")
+        .replace(/engineering environment/gi, "HR environment")
+        .replace(/engineering challenges/gi, "talent and culture challenges")
+        .replace(/engineering or workflow problem/gi, "recruitment or people operations problem")
+        .replace(/core legacy payments system/gi, "applicant tracking system")
+        .replace(/technical debt/gi, "process debt")
+        .replace(/technical debate/gi, "hiring strategy debate")
+        .replace(/technical specialization/gi, "HR specialization")
+        .replace(/technical risks/gi, "compliance risks")
+        .replace(/architecture security flaws/gi, "employee onboarding roadblocks")
+        .replace(/scaling limitations/gi, "retention limitations")
+        .replace(/database connection leaks/gi, "high candidate drop-out rates")
+        .replace(/CI\/CD pipeline/gi, "resume screening pipeline")
+        .replace(/45 minutes to run/gi, "2 weeks to complete");
+    } else if (roleCategory === "product_design") {
+      clean = clean
+        .replace(/engineering unit/gi, "Product and Design team")
+        .replace(/engineering environment/gi, "Product/Design environment")
+        .replace(/engineering challenges/gi, "user experience and feature scaling challenges")
+        .replace(/engineering or workflow problem/gi, "user experience or product delivery bottleneck")
+        .replace(/core legacy payments system/gi, "customer subscription flow")
+        .replace(/technical debt/gi, "UX debt")
+        .replace(/technical debate/gi, "feature prioritization debate")
+        .replace(/technical specialization/gi, "product management specialization")
+        .replace(/technical risks/gi, "usability and product alignment risks")
+        .replace(/architecture security flaws/gi, "confusing user navigation and high friction")
+        .replace(/scaling limitations/gi, "market adoption bottlenecks")
+        .replace(/database connection leaks/gi, "user churn rate spikes")
+        .replace(/CI\/CD pipeline/gi, "design sign-off process")
+        .replace(/45 minutes to run/gi, "5 days to complete");
+    } else if (roleCategory === "business_ops") {
+      clean = clean
+        .replace(/engineering unit/gi, "Operations division")
+        .replace(/engineering environment/gi, "Business Operations environment")
+        .replace(/engineering challenges/gi, "operational efficiency challenges")
+        .replace(/engineering or workflow problem/gi, "supply chain or reporting bottleneck")
+        .replace(/core legacy payments system/gi, "enterprise reporting platform")
+        .replace(/technical debt/gi, "operational waste")
+        .replace(/technical debate/gi, "process automation debate")
+        .replace(/technical specialization/gi, "operations specialization")
+        .replace(/technical risks/gi, "delivery and logistics risks")
+        .replace(/architecture security flaws/gi, "manual data entry errors")
+        .replace(/scaling limitations/gi, "fulfillment limits")
+        .replace(/database connection leaks/gi, "inventory tracking discrepancies")
+        .replace(/CI\/CD pipeline/gi, "monthly reporting pipeline")
+        .replace(/45 minutes to run/gi, "10 hours to compute");
+    } else if (roleCategory === "data") {
+      clean = clean
+        .replace(/engineering unit/gi, "Data Science team")
+        .replace(/engineering environment/gi, "analytics environment")
+        .replace(/engineering challenges/gi, "data quality and modeling challenges")
+        .replace(/engineering or workflow problem/gi, "data pipeline or model accuracy problem")
+        .replace(/core legacy payments system/gi, "predictive modeling pipeline")
+        .replace(/technical debt/gi, "model drift and data debt")
+        .replace(/technical debate/gi, "statistical methodology debate")
+        .replace(/technical specialization/gi, "machine learning specialization")
+        .replace(/technical risks/gi, "model bias and data drift risks")
+        .replace(/architecture security flaws/gi, "overfitting and poor model generalization")
+        .replace(/scaling limitations/gi, "real-time prediction latency")
+        .replace(/database connection leaks/gi, "feature leakage in training set")
+        .replace(/CI\/CD pipeline/gi, "model retraining pipeline")
+        .replace(/45 minutes to run/gi, "3 hours to train");
+    }
+    
+    return clean;
+  };
+
+  q.title = replaceContext(q.title || "");
+  q.description = replaceContext(q.description || "");
+  q.prompt = replaceContext(q.prompt || "");
+  q.modelAnswer = replaceContext(q.modelAnswer || "");
+  q.hints = q.hints.map(replaceContext);
+
+  // If the role is non-technical (e.g. HR, Business Ops, Product/Design) and we encounter a coding question,
+  // adjust the coding task to be a high-level process walkthrough, logic diagram, or step-by-step planning description
+  if (roleCategory !== "tech" && roleCategory !== "data" && q.type === "Technical_Coding") {
+    q.title = q.title.replace(/Optimization|Code/gi, "Process Walkthrough");
+    q.prompt = q.prompt
+      .replace(/implement a highly optimized solution/gi, "explain the step-by-step logic, process flow, or spreadsheet formula you would design to solve this")
+      .replace(/code the solution/gi, "describe the logical rules or conditional statements to handle this")
+      .replace(/mirror its children and return the inverted tree/gi, "describe how you would restructure the reporting line hierarchy recursively")
+      .replace(/recurrence relation, complexity, and implement/gi, "step-by-step logical approach and how you ensure all options are covered");
+    
+    if (q.examples) {
+      q.examples = q.examples.replace(/Return \[[0-9, ]+\]/gi, "Logical output matching the target value");
+    }
+  }
+
+  return q;
+}
+
 export function selectQuestions(
   bank: Question[],
   preferredTypes: InterviewType[],
@@ -279,12 +402,9 @@ export function selectQuestions(
     }
 
     if (next) {
-      // Customize question prompt to directly match custom target role!
-      const customized = {
-        ...next,
-        prompt: next.prompt.replace("realistic interview problem", `realistic problem faced by a ${role}`),
-      };
-      plan.push(customized);
+      // Customize question prompt and details to align directly with target role!
+      const aligned = alignQuestionToRole(next, role);
+      plan.push(aligned);
     }
   }
 
@@ -293,17 +413,25 @@ export function selectQuestions(
 
 function isTopicRoleMatch(topic: string, roleLower: string): boolean {
   const topicLower = topic.toLowerCase();
-  if (roleLower.includes("frontend") || roleLower.includes("ui") || roleLower.includes("react")) {
-    return ["notifications", "chat", "arrays", "hash maps"].includes(topicLower);
+  
+  if (roleLower.includes("frontend") || roleLower.includes("ui") || roleLower.includes("ux") || roleLower.includes("design")) {
+    return ["notifications", "chat", "arrays", "hash maps", "teamwork", "stakeholder alignment"].includes(topicLower);
   }
-  if (roleLower.includes("backend") || roleLower.includes("system") || roleLower.includes("infrastructure")) {
+  if (roleLower.includes("backend") || roleLower.includes("system") || roleLower.includes("infrastructure") || roleLower.includes("devops")) {
     return ["rate limiting", "file storage", "chat", "graph search", "dynamic programming"].includes(topicLower);
   }
-  if (roleLower.includes("manager") || roleLower.includes("lead") || roleLower.includes("product")) {
+  if (roleLower.includes("data") || roleLower.includes("scientist") || roleLower.includes("analytics") || roleLower.includes("analyst")) {
+    return ["arrays", "hash maps", "graph search", "motivation", "prioritization"].includes(topicLower);
+  }
+  if (roleLower.includes("manager") || roleLower.includes("lead") || roleLower.includes("product") || roleLower.includes("operations")) {
     return ["prioritization", "stakeholder alignment", "leadership", "teamwork", "escalation"].includes(topicLower);
+  }
+  if (roleLower.includes("hr") || roleLower.includes("recruiter") || roleLower.includes("people") || roleLower.includes("specialist")) {
+    return ["motivation", "career goals", "company fit", "salary expectations", "availability", "conflict resolution", "teamwork"].includes(topicLower);
   }
   return false;
 }
+
 
 function makePrompt(type: InterviewType, topic: string, difficulty: DifficultyLevel) {
   if (type === "Technical_Coding") {
