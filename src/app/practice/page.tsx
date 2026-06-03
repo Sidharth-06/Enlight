@@ -238,7 +238,20 @@ export default function PracticePage() {
   // ── Timer ─────────────────────────────────────────────────
   useEffect(() => {
     if (!profile.timedMode) return;
-    setTimeRemaining(180);
+
+    // Calculate time based on role and difficulty
+    const techRoles = ["software engineer", "frontend engineer", "backend engineer", "devops engineer", "data scientist"];
+    const isTech = techRoles.includes((profile.role || "").toLowerCase());
+    
+    let baseTime = isTech ? 300 : 180; // 5 mins for tech, 3 mins for non-tech/hr
+    
+    if (profile.difficulty === "Beginner") {
+      baseTime += 60; // +1 min for beginners
+    } else if (profile.difficulty === "Advanced") {
+      baseTime -= 60; // -1 min for advanced
+    }
+
+    setTimeRemaining(baseTime);
     timerRef.current = setInterval(() => {
       setTimeRemaining((t) => {
         if (t === null || t <= 1) {
@@ -250,7 +263,8 @@ export default function PracticePage() {
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [index, profile.timedMode, handleSubmit]);
+  }, [index, profile.timedMode, profile.role, profile.difficulty, handleSubmit]);
+
 
   // ── Next question ─────────────────────────────────────────
   function handleNext() {
