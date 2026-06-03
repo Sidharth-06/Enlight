@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -130,6 +130,20 @@ export default function DashboardPage() {
 
   const displayName = user?.user_metadata?.full_name?.split(" ")[0] ||
     user?.email?.split("@")[0] || "there";
+
+  const isFirstMount = useRef(true);
+
+  // Dynamically update interview types when target role changes
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    if (role && ROLE_OPTIONS.includes(role)) {
+      setSelectedTypes(getDefaultTypesForRole(role));
+    }
+  }, [role]);
+
 
   useEffect(() => {
     try {
