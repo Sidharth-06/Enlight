@@ -87,8 +87,9 @@ export function evaluateAnswer(
     };
   });
 
-  const criticalGaps = dimensions.filter((dimension) => dimension.impact >= 3);
+  const criticalGaps = dimensions.filter((dimension) => dimension.impact >= 3 && dimension.score < 4);
   const minorImprovements = dimensions.filter((dimension) => dimension.impact < 3 && dimension.score < 4);
+
   const weakest = dimensions.find((dimension) => dimension.score < 4)?.label ?? question.topic;
 
   // Build dynamic suggestions & improvements

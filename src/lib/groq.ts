@@ -38,7 +38,8 @@ Guidelines:
 - Return ONLY a valid JSON object matching the requested schema. Do not include markdown wraps (like \`\`\`json) or extra text.
 - Persona Guidelines: ${personaGuidelines}
 - Constraints Checks: ${constraintsCheck}
-- Scoring Guidelines: Score the candidate's response strictly on a 1-10 scale. Capping: The score ceiling is ${10 - hintsUsed}. Enforce a minimum score floor of 1. If persona is 'challenging', subtract an additional 1.5 points from your standard rating (with floor of 1) and cap the score at 6/10 if they missed any rubric dimension.`;
+- Scoring Guidelines: Score the candidate's response strictly on a 1-10 scale. Capping: The score ceiling is ${10 - hintsUsed}. Enforce a minimum score floor of 1. If persona is 'challenging', subtract an additional 1.5 points from your standard rating (with floor of 1) and cap the score at 6/10 if they missed any rubric dimension.
+- Feedback Richness: Ensure that "strengths", "improvements", "suggestions", and "observations" are NOT generic. They MUST refer to specific lines of code, variable/function names, algorithmic choices, or specific points mentioned by the candidate in their text. Explicitly critique their actual input dynamically.`;
 
   const messages: GroqMessage[] = [
     {
@@ -154,7 +155,7 @@ function normalizeGroqFeedback(
     improvements: ensureList(raw.improvements, "Add more specific evidence and trade-offs."),
     suggestions: ensureList(raw.suggestions, "Use a concrete example and quantify impact where possible."),
     dimensions,
-    criticalGaps: dimensions.filter((dimension) => dimension.impact >= 3),
+    criticalGaps: dimensions.filter((dimension) => dimension.impact >= 3 && dimension.score < 4),
     minorImprovements: dimensions.filter((dimension) => dimension.impact < 3 && dimension.score < 4),
     followUpPolicy: raw.followUpPolicy === "Auto" || raw.followUpPolicy === "Optional" ? raw.followUpPolicy : "Offer",
     followUpQuestion:
