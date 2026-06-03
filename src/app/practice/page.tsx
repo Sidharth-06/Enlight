@@ -12,7 +12,8 @@ import toast from "react-hot-toast";
 import {
   Clock, Lightbulb, Star, Flag,
   RotateCcw, Send, Mic, MicOff, Code2, BookOpen,
-  CheckCircle2, AlertTriangle, ArrowRight, X, Sparkles
+  CheckCircle2, AlertTriangle, ArrowRight, X, Sparkles,
+  Menu
 } from "lucide-react";
 import type { AnswerRecord, Feedback, InterviewType } from "@/lib/types";
 
@@ -40,7 +41,7 @@ export default function PracticePage() {
     plan, index, records, profile, status,
     addRecord, nextQuestion, resetSession,
     toggleStar, flagQuestion, starredQuestions,
-    interviewerMood,
+    interviewerMood, drafts, setDraft,
   } = useSessionStore();
 
   // ── State ─────────────────────────────────────────────────
@@ -56,6 +57,35 @@ export default function PracticePage() {
   const [hintsVisible, setHintsVisible] = useState(false);
   const [isCopilotLoading, setIsCopilotLoading] = useState(false);
   const [copilotHint, setCopilotHint] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // ── Derived ───────────────────────────────────────────────
+  const currentQuestion = plan[index];
+  const isCoding = currentQuestion?.type === "Technical_Coding";
+  const isTextual = ["Behavioral", "Situational", "HR"].includes(currentQuestion?.type || "");
+  const isStarred = starredQuestions.includes(currentQuestion?.id || "");
+  const typeColor = TYPE_COLORS[currentQuestion?.type as InterviewType] || "#10b981";
+  const progress = ((index + (feedback ? 1 : 0)) / (plan.length || 1)) * 100;
+
+  // Update answer in component state and Zustand store drafts
+  const updateAnswer = useCallback((valOrFn: string | ((prev: string) => string)) => {
+    setAnswer((prev) => {
+      const nextVal = typeof valOrFn === "function" ? valOrFn(prev) : valOrFn;
+      if (currentQuestion) {
+        setDraft(currentQuestion.id, nextVal);
+      }
+      return nextVal;
+    });
+  }, [currentQuestion, setDraft]);
+
+  // Navigate between questions, saving current draft in real-time
+  const navigateToQuestion = useCallback((targetIndex: number) => {
+    if (targetIndex < 0 || targetIndex >= plan.length) return;
+    if (currentQuestion) {
+      setDraft(currentQuestion.id, answer);
+    }
+    useSessionStore.setState({ index: targetIndex });
+  }, [plan.length, currentQuestion, answer, setDraft]);
 
   async function triggerCopilot() {
     if (!answer.trim()) {
@@ -106,14 +136,6 @@ export default function PracticePage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // ── Derived ───────────────────────────────────────────────
-  const currentQuestion = plan[index];
-  const isCoding = currentQuestion?.type === "Technical_Coding";
-  const isTextual = ["Behavioral", "Situational", "HR"].includes(currentQuestion?.type || "");
-  const isStarred = starredQuestions.includes(currentQuestion?.id || "");
-  const typeColor = TYPE_COLORS[currentQuestion?.type as InterviewType] || "#10b981";
-  const progress = ((index + (feedback ? 1 : 0)) / (plan.length || 1)) * 100;
-
   // ── Mount guard ───────────────────────────────────────────
   useEffect(() => {
     setMounted(true);
@@ -129,18 +151,30 @@ export default function PracticePage() {
     }
   }, [mounted, status, plan.length]);
 
-  // Reset state on question change
+  // Load draft or completed record feedback when question index changes
   useEffect(() => {
-    setAnswer("");
-    setFeedback(null);
-    setDrawerOpen(false);
-    setHintsUsed(0);
+    if (!currentQuestion) return;
+
+    const questionRecord = records.find((r) => r.question.id === currentQuestion.id);
+    if (questionRecord) {
+      setAnswer(questionRecord.answer);
+      setFeedback(questionRecord.feedback);
+      setHintsUsed(questionRecord.hintsUsed);
+      setDrawerOpen(true);
+    } else {
+      setAnswer(drafts[currentQuestion.id] || "");
+      setFeedback(null);
+      setDrawerOpen(false);
+      setHintsUsed(0);
+    }
+    
     setHintsVisible(false);
     setIntervention(null);
     setIsModelRevealed(false);
     setFollowUpActive(false);
     setFollowUpAnswer("");
-  }, [index]);
+    setCopilotHint(null);
+  }, [index, currentQuestion?.id, records, drafts]);
 
   // ── Submit ────────────────────────────────────────────────
   const handleSubmit = useCallback(async (auto = false) => {
@@ -221,21 +255,26 @@ export default function PracticePage() {
   // ── Next question ─────────────────────────────────────────
   function handleNext() {
     setDrawerOpen(false);
-    setTimeout(async () => {
-      // Clear workspace inputs for standard questions
-      setAnswer("");
-      setFeedback(null);
-      setHintsUsed(0);
-      setHintsVisible(false);
-      setIsModelRevealed(false);
-      setFollowUpActive(false);
-      setFollowUpAnswer("");
-      setCopilotHint(null);
+    const isLastQuestion = index + 1 >= plan.length;
+    const isAllAnswered = records.length === plan.length;
 
-      nextQuestion();
-      const state = useSessionStore.getState();
-      if (state.status === "summary") {
+    setTimeout(async () => {
+      if (isLastQuestion || isAllAnswered) {
+        useSessionStore.setState({ status: "summary" });
+        const state = useSessionStore.getState();
         await saveAndNavigate(state);
+      } else {
+        // Clear workspace inputs for standard questions and advance
+        setAnswer("");
+        setFeedback(null);
+        setHintsUsed(0);
+        setHintsVisible(false);
+        setIsModelRevealed(false);
+        setFollowUpActive(false);
+        setFollowUpAnswer("");
+        setCopilotHint(null);
+        
+        nextQuestion();
       }
     }, 300);
   }
@@ -323,7 +362,7 @@ export default function PracticePage() {
 
           const transText = data.text;
           if (transText && transText.trim()) {
-            setAnswer((prev) => prev + (prev ? " " : "") + transText.trim());
+            updateAnswer((prev) => prev + (prev ? " " : "") + transText.trim());
           }
         } catch (err: any) {
           console.warn("Cloud transcription failed in practice workspace:", err.message || err);
@@ -341,7 +380,7 @@ export default function PracticePage() {
         rec.interimResults = false;
         rec.onresult = (e: any) => {
           const text = Array.from(e.results).map((r: any) => r[0].transcript).join(" ");
-          setAnswer((prev) => prev + " " + text);
+          updateAnswer((prev) => prev + " " + text);
         };
         rec.onend = () => setIsListening(false);
         recognitionRef.current = rec;
@@ -379,6 +418,13 @@ export default function PracticePage() {
         {/* ── TOP BAR ──────────────────────────────────────── */}
         <div className="practice-topbar">
           <div className="practice-topbar-left">
+            <button
+              className={`practice-sidebar-toggle ${sidebarOpen ? "open" : ""}`}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              title="Toggle questions drawer"
+            >
+              <Menu size={16} />
+            </button>
             <div className="practice-nav-info">
               <span className="practice-qnum">Q{index + 1}</span>
               <span className="practice-qtotal">/ {plan.length}</span>
@@ -457,6 +503,55 @@ export default function PracticePage() {
           onMouseUp={onPanelMouseUp}
           onMouseLeave={onPanelMouseUp}
         >
+          {/* Collapsible Sidebar of Questions */}
+          <AnimatePresence initial={false}>
+            {sidebarOpen && (
+              <motion.div
+                className="practice-sidebar"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 240, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="sidebar-header">
+                  <span>Questions</span>
+                  <span className="sidebar-count">{plan.length} Qs</span>
+                </div>
+                <div className="sidebar-list">
+                  {plan.map((q, idx) => {
+                    const isCompleted = records.some((r) => r.question.id === q.id);
+                    const isActive = idx === index;
+                    const qColor = TYPE_COLORS[q.type] || "#10b981";
+                    
+                    return (
+                      <button
+                        key={q.id}
+                        className={`sidebar-item ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`}
+                        onClick={() => navigateToQuestion(idx)}
+                      >
+                        <div className="item-status-icon">
+                          {isCompleted ? (
+                            <CheckCircle2 size={14} style={{ color: "#10b981" }} />
+                          ) : isActive ? (
+                            <div className="active-dot-indicator" style={{ background: qColor }} />
+                          ) : (
+                            <span className="bullet-number">{idx + 1}</span>
+                          )}
+                        </div>
+                        <div className="item-details">
+                          <div className="item-title">{q.title || q.topic}</div>
+                          <div className="item-type" style={{ color: qColor }}>
+                            {q.type.replace("Technical_", "").replace(/_/g, " ")}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* LEFT: Question panel */}
           <div className="question-panel-wrap" style={{ width: `${leftWidth}%` }}>
             <div className="question-panel">
@@ -579,6 +674,29 @@ export default function PracticePage() {
                   <div className="model-answer-text">{currentQuestion.modelAnswer}</div>
                 </div>
               )}
+
+              {/* Question Pagination Controls */}
+              {plan.length > 1 && (
+                <div className="question-pagination">
+                  <button
+                    className="pagination-btn"
+                    onClick={() => navigateToQuestion(index - 1)}
+                    disabled={index === 0}
+                  >
+                    ← Previous
+                  </button>
+                  <span className="pagination-text">
+                    Question {index + 1} of {plan.length}
+                  </span>
+                  <button
+                    className="pagination-btn"
+                    onClick={() => navigateToQuestion(index + 1)}
+                    disabled={index === plan.length - 1}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -685,7 +803,7 @@ export default function PracticePage() {
                   <textarea
                     className="answer-textarea"
                     value={answer}
-                    onChange={(e) => !feedback && setAnswer(e.target.value)}
+                    onChange={(e) => !feedback && updateAnswer(e.target.value)}
                     disabled={!!feedback}
                     placeholder={
                       currentQuestion.type === "Behavioral"
@@ -906,7 +1024,7 @@ export default function PracticePage() {
                     whileTap={{ scale: 0.97 }}
                     whileHover={{ scale: 1.02 }}
                   >
-                    {index + 1 >= plan.length ? (
+                    {index + 1 >= plan.length || records.length === plan.length ? (
                       <><CheckCircle2 size={18} />Complete Session</>
                     ) : (
                       <>Next Question <ArrowRight size={18} /></>

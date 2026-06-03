@@ -13,6 +13,7 @@ type SessionState = {
   starredQuestions: string[];
   flaggedQuestions: string[];
   interviewerMood: "Professional" | "Impressed" | "Skeptical" | "Supportive";
+  drafts: Record<string, string>;
 
   // Actions
   setProfile: (p: Profile) => void;
@@ -24,6 +25,7 @@ type SessionState = {
   flagQuestion: (id: string) => void;
   setStatus: (s: SessionStatus) => void;
   loadPausedSession: (state: Partial<SessionState>) => void;
+  setDraft: (questionId: string, draft: string) => void;
 };
 
 const defaultProfile: Profile = {
@@ -46,15 +48,20 @@ export const useSessionStore = create<SessionState>()(
       starredQuestions: [],
       flaggedQuestions: [],
       interviewerMood: "Professional",
+      drafts: {},
 
       setProfile: (p) => set({ profile: p }),
 
       startSession: (plan, profile) =>
-        set({ plan, profile, index: 0, records: [], status: "active", interviewerMood: "Professional" }),
+        set({ plan, profile, index: 0, records: [], status: "active", interviewerMood: "Professional", drafts: {} }),
 
       addRecord: (r) =>
         set((s) => {
-          const newRecords = [...s.records, r];
+          // Overwrite existing record if resubmitting the same question ID, otherwise append
+          const exists = s.records.some((rec) => rec.question.id === r.question.id);
+          const newRecords = exists
+            ? s.records.map((rec) => (rec.question.id === r.question.id ? r : rec))
+            : [...s.records, r];
           
           // Determine the interviewer mood dynamically based on average scores and hints
           let newMood: "Professional" | "Impressed" | "Skeptical" | "Supportive" = "Professional";
@@ -83,7 +90,7 @@ export const useSessionStore = create<SessionState>()(
         }),
 
       resetSession: () =>
-        set({ plan: [], index: 0, records: [], status: "setup", interviewerMood: "Professional" }),
+        set({ plan: [], index: 0, records: [], status: "setup", interviewerMood: "Professional", drafts: {} }),
 
       toggleStar: (id) =>
         set((s) => ({
@@ -98,6 +105,14 @@ export const useSessionStore = create<SessionState>()(
       setStatus: (status) => set({ status }),
 
       loadPausedSession: (state) => set(state as SessionState),
+
+      setDraft: (questionId, draft) =>
+        set((s) => ({
+          drafts: {
+            ...s.drafts,
+            [questionId]: draft,
+          },
+        })),
     }),
     {
       name: "interview-session-store",
@@ -110,6 +125,7 @@ export const useSessionStore = create<SessionState>()(
         interviewerMood: s.interviewerMood,
         starredQuestions: s.starredQuestions,
         flaggedQuestions: s.flaggedQuestions,
+        drafts: s.drafts,
       }),
     }
   )

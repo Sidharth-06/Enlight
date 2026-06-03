@@ -63,45 +63,53 @@ const ROLE_OPTIONS = [
   "Software Engineer",
   "Frontend Engineer",
   "Backend Engineer",
-  "Fullstack Engineer",
   "DevOps Engineer",
-  "SRE",
-  "Data Engineer",
   "Data Scientist",
-  "ML Engineer",
   "Product Manager",
-  "Product Designer",
-  "UX Designer",
-  "Engineering Manager",
-  "Senior Engineer",
+  "UX/UI Designer",
+  "Business Analyst",
+  "Operations Manager",
+  "HR Specialist",
 ];
 
 function getDefaultTypesForRole(role: string): InterviewType[] {
   const roleLower = role.toLowerCase();
   
-  // PM, Product, Design roles → Behavioral, Situational, HR
-  if (roleLower.includes("product") || roleLower.includes("pm") || roleLower.includes("design")) {
+  // HR, Operations, Business Analyst, PM, Design roles → Behavioral, Situational, HR
+  if (
+    roleLower.includes("product") ||
+    roleLower.includes("design") ||
+    roleLower.includes("hr") ||
+    roleLower.includes("specialist") ||
+    roleLower.includes("operations") ||
+    roleLower.includes("business")
+  ) {
     return ["Behavioral", "Situational", "HR"];
   }
   
-  // DevOps, SRE → System Design, Technical_Coding
-  if (roleLower.includes("devops") || roleLower.includes("sre")) {
+  // DevOps → System Design, Technical_Coding
+  if (roleLower.includes("devops")) {
     return ["Technical_System_Design", "Technical_Coding"];
   }
   
-  // Data scientist, ML → Behavioral, Situational, HR (less coding focus)
-  if (roleLower.includes("data") || roleLower.includes("machine learning") || roleLower.includes("ml")) {
+  // Data scientist → Behavioral, Situational, Technical_Coding
+  if (roleLower.includes("data")) {
     return ["Behavioral", "Situational", "Technical_Coding"];
   }
   
   // Default for engineers: Behavioral, System Design, Coding
-  if (roleLower.includes("engineer") || roleLower.includes("backend") || roleLower.includes("frontend") || roleLower.includes("fullstack")) {
+  if (
+    roleLower.includes("engineer") ||
+    roleLower.includes("backend") ||
+    roleLower.includes("frontend")
+  ) {
     return ["Technical_Coding", "Technical_System_Design", "Behavioral"];
   }
   
   // Default fallback
   return ["Technical_Coding", "Technical_System_Design", "Behavioral"];
 }
+
 
 export default function DashboardPage() {
   const router = useRouter();
