@@ -146,15 +146,48 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
+    const localSessions: any[] = [];
     try {
       const saved = localStorage.getItem("interview-prep-history");
-      if (saved) setRecentSessions(JSON.parse(saved).slice(0, 5));
-    } catch {}
+      if (saved) localSessions.push(...JSON.parse(saved));
+    } catch (e) {
+      console.error("Failed to load local history", e);
+    }
+
+    async function loadRemote() {
+      try {
+        const res = await fetch("/api/sessions");
+        const data = await res.json();
+        const remoteSessions = (data.sessions ?? []).map((row: any) => {
+          const payload = row.payload ?? {};
+          return {
+            ...payload,
+            createdAt: payload.createdAt ?? row.created_at,
+            id: payload.id ?? row.id,
+          };
+        });
+
+        const merged = new Map<string, any>();
+        [...remoteSessions, ...localSessions].forEach((s) => {
+          const key = s.id || s.createdAt || crypto.randomUUID();
+          if (!merged.has(key)) merged.set(key, s);
+        });
+
+        const next = Array.from(merged.values()).sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return bTime - aTime;
+        });
+        setRecentSessions(next);
+      } catch (err) {
+        console.warn("Could not load remote history, falling back to local storage", err);
+        setRecentSessions(localSessions);
+      }
+    }
+
+    loadRemote();
   }, []);
 
-  useEffect(() => {
-    setSelectedTypes(getDefaultTypesForRole(role));
-  }, [role]);
 
   function toggleType(type: InterviewType) {
     setSelectedTypes((prev) =>
